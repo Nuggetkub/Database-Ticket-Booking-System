@@ -26,14 +26,14 @@ type DayKey = typeof DAYS[number]['key'];
 function rowTotal(r: PeakSalesPoint) { return r.sun + r.mon + r.tue + r.wed + r.thu + r.fri + r.sat; }
 
 // ── Other report types ────────────────────────────────────────────────────────
-interface RegionPoint   { province: string; ticketsSold: number; totalIncome: number; }
+interface TagVenuePoint { tag: string; venueName: string; showtimeCount: number; ticketsSold: number; }
 interface CapacityPoint { eventTitle: string; venueName: string; showSchedules: string; totalCapacity: number; bookedTickets: number; fillRate: number; }
 interface TopEventPoint { eventTitle: string; ticketsSold: number; totalIncome: number; }
 interface EventOption   { eventId: number; title: string; }
 
 const REPORT_TYPES = [
   { value: 'peak-sales',  label: 'Peak Sales Period' },
-  { value: 'top-region',  label: 'Top-Selling Province' },
+  { value: 'tag-venue',   label: 'Tag to Venue' },
   { value: 'capacity',    label: 'Booking-to-Capacity' },
   { value: 'top-income',  label: 'Top Events by Income' },
   { value: 'top-tickets', label: 'Top Events by Tickets Sold' },
@@ -76,7 +76,7 @@ export function AdminReportsPage({ onNavigate }: Props) {
   const [error, setError]         = useState('');
 
   const [peakData,     setPeakData]     = useState<PeakSalesPoint[]>([]);
-  const [regionData,   setRegionData]   = useState<RegionPoint[]>([]);
+  const [tagVenueData, setTagVenueData] = useState<TagVenuePoint[]>([]);
   const [capacityData, setCapacityData] = useState<CapacityPoint[]>([]);
   const [incomeData,   setIncomeData]   = useState<TopEventPoint[]>([]);
   const [ticketsData,  setTicketsData]  = useState<TopEventPoint[]>([]);
@@ -95,7 +95,7 @@ export function AdminReportsPage({ onNavigate }: Props) {
     const f = { startDate: start || undefined, endDate: end || undefined };
     try {
       if (type === 'peak-sales')  setPeakData(await api.getPeakSales({ ...f, eventId: evId }));
-      if (type === 'top-region')  setRegionData(await api.getTopRegion(f));
+      if (type === 'tag-venue')   setTagVenueData(await api.getTagVenue(f));
       if (type === 'capacity')    setCapacityData(await api.getCapacity(f));
       if (type === 'top-income')  setIncomeData(await api.getTopEventsByIncome(f));
       if (type === 'top-tickets') setTicketsData(await api.getTopEventsByTickets(f));
@@ -124,7 +124,7 @@ export function AdminReportsPage({ onNavigate }: Props) {
 
   const isEmpty = ({
     'peak-sales':  peakData.length === 0,
-    'top-region':  regionData.length === 0,
+    'tag-venue':   tagVenueData.length === 0,
     'capacity':    capacityData.length === 0,
     'top-income':  incomeData.length === 0,
     'top-tickets': ticketsData.length === 0,
@@ -306,48 +306,65 @@ export function AdminReportsPage({ onNavigate }: Props) {
               </>
             )}
 
-            {/* ── Top Region ─────────────────────────────────────── */}
-            {reportType === 'top-region' && (
-              <>
-                <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
-                  <h3 className="text-base font-semibold text-gray-800 mb-4">Revenue by Province</h3>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={regionData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="province" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={(v: number) => `฿${Number(v).toLocaleString()}`} />
-                      <Bar dataKey="totalIncome" name="Revenue (฿)" radius={[4,4,0,0]}>
-                        {regionData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Province</th>
-                        <th className="text-center px-4 py-3 font-semibold text-gray-600">Tickets Sold</th>
-                        <th className="text-right px-4 py-3 font-semibold text-gray-600">Total Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {regionData.map((r, i) => (
-                        <tr key={r.province} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-800">
-                            <span className="inline-block w-3 h-3 rounded-sm mr-2 align-middle" style={{ background: BAR_COLORS[i % BAR_COLORS.length] }} />
-                            {r.province}
-                          </td>
-                          <td className="text-center px-4 py-3 text-gray-700">{r.ticketsSold.toLocaleString()}</td>
-                          <td className="text-right px-4 py-3 font-bold text-indigo-700">฿{Number(r.totalIncome).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+            {/* ── Tag to Venue ───────────────────────────────────── */}
+            {reportType === 'tag-venue' && (() => {
+              const tagTotals = Object.values(
+                tagVenueData.reduce((acc, r) => {
+                  if (!acc[r.tag]) acc[r.tag] = { tag: r.tag, showtimeCount: 0 };
+                  acc[r.tag].showtimeCount += r.showtimeCount;
+                  return acc;
+                }, {} as Record<string, { tag: string; showtimeCount: number }>)
+              );
+              return (
+                <>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
+                    <h3 className="text-base font-semibold text-gray-800 mb-4">Total Showtimes per Tag</h3>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={tagTotals} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="tag" tick={{ fontSize: 12 }} width={120} />
+                        <Tooltip formatter={(v: number) => [v, 'Showtimes']} />
+                        <Bar dataKey="showtimeCount" name="Showtimes" radius={[0,4,4,0]}>
+                          {tagTotals.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="px-5 py-3.5 border-b border-gray-100">
+                      <h3 className="text-sm font-semibold text-gray-800">Tag × Venue Breakdown</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left px-4 py-3 font-semibold text-gray-600">Tag</th>
+                            <th className="text-left px-4 py-3 font-semibold text-gray-600">Venue</th>
+                            <th className="text-center px-4 py-3 font-semibold text-gray-600">Showtimes</th>
+                            <th className="text-right px-4 py-3 font-semibold text-gray-600">Tickets Sold</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {tagVenueData.map((r, i) => (
+                            <tr key={i} className="hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                  {r.tag}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-700">{r.venueName}</td>
+                              <td className="text-center px-4 py-3 font-bold text-indigo-700">{r.showtimeCount}</td>
+                              <td className="text-right px-4 py-3 text-gray-700">{r.ticketsSold.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* ── Capacity Analysis ──────────────────────────────── */}
             {reportType === 'capacity' && (

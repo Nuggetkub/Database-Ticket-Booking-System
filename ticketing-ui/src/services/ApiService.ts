@@ -296,13 +296,13 @@ class ApiService {
     );
   }
 
-  async getTopRegion(filters: { startDate?: string; endDate?: string } = {}) {
+  async getTagVenue(filters: { startDate?: string; endDate?: string } = {}) {
     const qs = new URLSearchParams();
     if (filters.startDate) qs.set('startDate', filters.startDate);
     if (filters.endDate)   qs.set('endDate',   filters.endDate);
     const q = qs.toString();
-    return request<{ province: string; ticketsSold: number; totalIncome: number }[]>(
-      `/admin/reports/top-region${q ? `?${q}` : ''}`,
+    return request<{ tag: string; venueName: string; showtimeCount: number; ticketsSold: number }[]>(
+      `/admin/reports/tag-venue${q ? `?${q}` : ''}`,
     );
   }
 

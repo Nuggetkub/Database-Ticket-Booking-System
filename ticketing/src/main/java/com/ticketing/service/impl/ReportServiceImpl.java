@@ -5,7 +5,7 @@ import com.ticketing.dto.report.OverviewResponse;
 import com.ticketing.dto.report.PeakSalesPoint;
 import com.ticketing.dto.report.RecentBookingDto;
 import com.ticketing.dto.report.TopEventPoint;
-import com.ticketing.dto.report.TopRegionPoint;
+import com.ticketing.dto.report.TagVenuePoint;
 import com.ticketing.dto.report.UpcomingShowtimeDto;
 import com.ticketing.service.ReportService;
 import jakarta.persistence.EntityManager;
@@ -73,23 +73,31 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TopRegionPoint> getTopRegion(LocalDate startDate, LocalDate endDate) {
+    public List<TagVenuePoint> getTagVenue(LocalDate startDate, LocalDate endDate) {
         OffsetDateTime start = startDate != null ? startDate.atStartOfDay().atOffset(ZoneOffset.UTC) : null;
         OffsetDateTime end   = endDate   != null ? endDate.atTime(23, 59, 59).atOffset(ZoneOffset.UTC) : null;
 
         StringBuilder sql = new StringBuilder("""
-                SELECT a.province, COUNT(t.ticket_id) AS tickets_sold, COALESCE(SUM(t.price), 0) AS total_income
-                FROM bookings b
-                JOIN tickets     t  ON t.booking_id  = b.booking_id
-                JOIN tickettiers tt ON tt.tier_id     = t.tier_id
-                JOIN showtimes   s  ON s.showtime_id  = tt.showtime_id
-                JOIN venues      v  ON v.venue_id     = s.venue_id
-                JOIN addresses   a  ON a.address_id   = v.address_id
-                WHERE b.status::text = 'CONFIRMED'
+                SELECT et.type_name AS tag, v.name AS venue_name,
+                       COUNT(DISTINCT s.showtime_id) AS showtime_count,
+                       COALESCE(SUM(c.cnt), 0)       AS tickets_sold
+                FROM eventtypes et
+                JOIN eventtypemappings etm ON etm.type_id  = et.type_id
+                JOIN events            e   ON e.event_id   = etm.event_id
+                JOIN showtimes         s   ON s.event_id   = e.event_id
+                JOIN venues            v   ON v.venue_id   = s.venue_id
+                LEFT JOIN tickettiers  tt  ON tt.showtime_id = s.showtime_id
+                LEFT JOIN (
+                    SELECT t.tier_id, COUNT(t.ticket_id) AS cnt
+                    FROM tickets t
+                    JOIN bookings b ON b.booking_id = t.booking_id AND b.status::text = 'CONFIRMED'
+                    GROUP BY t.tier_id
+                ) c ON c.tier_id = tt.tier_id
+                WHERE 1=1
                 """);
         if (start != null) sql.append(" AND s.show_schedules >= :start");
         if (end   != null) sql.append(" AND s.show_schedules <= :end");
-        sql.append(" GROUP BY a.province ORDER BY total_income DESC");
+        sql.append(" GROUP BY et.type_id, et.type_name, v.venue_id, v.name ORDER BY et.type_name, showtime_count DESC");
 
         var query = em.createNativeQuery(sql.toString());
         if (start != null) query.setParameter("start", start);
@@ -98,10 +106,11 @@ public class ReportServiceImpl implements ReportService {
         @SuppressWarnings("unchecked")
         List<Object[]> rows = query.getResultList();
         return rows.stream()
-                .map(r -> new TopRegionPoint(
+                .map(r -> new TagVenuePoint(
                         (String) r[0],
-                        ((Number) r[1]).longValue(),
-                        (BigDecimal) r[2]))
+                        (String) r[1],
+                        ((Number) r[2]).longValue(),
+                        ((Number) r[3]).longValue()))
                 .toList();
     }
 
@@ -116,14 +125,18 @@ public class ReportServiceImpl implements ReportService {
                        ROUND(booked_tickets::numeric / NULLIF(total_capacity, 0) * 100, 1) AS fill_rate
                 FROM (
                     SELECT e.title AS event_title, v.name AS venue_name, s.show_schedules,
-                           SUM(tt.total_amount)  AS total_capacity,
-                           COUNT(tk.ticket_id)   AS booked_tickets
+                           SUM(tt.total_amount)          AS total_capacity,
+                           COALESCE(SUM(c.cnt), 0)       AS booked_tickets
                     FROM showtimes   s
                     JOIN events      e  ON e.event_id    = s.event_id
                     JOIN venues      v  ON v.venue_id    = s.venue_id
                     JOIN tickettiers tt ON tt.showtime_id = s.showtime_id
-                    LEFT JOIN tickets tk ON tk.tier_id   = tt.tier_id
-                    LEFT JOIN bookings bk ON bk.booking_id = tk.booking_id AND bk.status::text = 'CONFIRMED'
+                    LEFT JOIN (
+                        SELECT t.tier_id, COUNT(t.ticket_id) AS cnt
+                        FROM tickets t
+                        JOIN bookings b ON b.booking_id = t.booking_id AND b.status::text = 'CONFIRMED'
+                        GROUP BY t.tier_id
+                    ) c ON c.tier_id = tt.tier_id
                     WHERE 1=1
                 """);
         if (start != null) sql.append(" AND s.show_schedules >= :start");

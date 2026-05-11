@@ -4,7 +4,7 @@ import com.ticketing.dto.report.CapacityPoint;
 import com.ticketing.dto.report.OverviewResponse;
 import com.ticketing.dto.report.PeakSalesPoint;
 import com.ticketing.dto.report.TopEventPoint;
-import com.ticketing.dto.report.TopRegionPoint;
+import com.ticketing.dto.report.TagVenuePoint;
 import com.ticketing.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -31,11 +31,11 @@ public class ReportController {
         return ResponseEntity.ok(reportService.getPeakSales(startDate, endDate, eventId));
     }
 
-    @GetMapping("/top-region")
-    public ResponseEntity<List<TopRegionPoint>> topRegion(
+    @GetMapping("/tag-venue")
+    public ResponseEntity<List<TagVenuePoint>> tagVenue(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ResponseEntity.ok(reportService.getTopRegion(startDate, endDate));
+        return ResponseEntity.ok(reportService.getTagVenue(startDate, endDate));
     }
 
     @GetMapping("/capacity")
