@@ -23,7 +23,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(body || `HTTP ${res.status}`);
+    let message = body || `HTTP ${res.status}`;
+    try {
+      const json = JSON.parse(body);
+      message = json.message || json.error || message;
+    } catch { /* body was plain text */ }
+    throw new Error(message);
   }
   return res.json();
 }

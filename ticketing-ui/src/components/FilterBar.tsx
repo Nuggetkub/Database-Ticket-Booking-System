@@ -36,7 +36,8 @@ function countAdvanced(f: FilterValues) {
 }
 
 function fmtDateChip(d: string) {
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const [y, m, day] = d.split('-').map(Number);
+  return new Date(y, m - 1, day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 export function FilterBar({ allTags, allVenues, initial, onApply }: Props) {
