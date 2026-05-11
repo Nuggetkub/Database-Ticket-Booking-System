@@ -360,12 +360,14 @@ export function AdminReportsPage({ onNavigate }: Props) {
               const uniqueTags   = new Set(tagVenueData.map(r => r.tag)).size;
               const uniqueVenues = new Set(tagVenueData.map(r => r.venueName)).size;
               const topTag       = [...tagVenueData].sort((a, b) => b.showtimeCount - a.showtimeCount)[0];
-              const tagTotals    = Object.values(
+              const allTags   = [...new Set(tagVenueData.map(r => r.tag))];
+              const venueRows = Object.values(
                 tagVenueData.reduce((acc, r) => {
-                  if (!acc[r.tag]) acc[r.tag] = { tag: r.tag, showtimeCount: 0 };
-                  acc[r.tag].showtimeCount += r.showtimeCount;
+                  if (!acc[r.venueName]) acc[r.venueName] = { venueName: r.venueName };
+                  (acc[r.venueName] as Record<string, unknown>)[r.tag] =
+                    ((acc[r.venueName] as Record<string, unknown>)[r.tag] as number ?? 0) + r.showtimeCount;
                   return acc;
-                }, {} as Record<string, { tag: string; showtimeCount: number }>)
+                }, {} as Record<string, { venueName: string }>)
               );
               return (
                 <>
@@ -375,16 +377,23 @@ export function AdminReportsPage({ onNavigate }: Props) {
                     <StatCard label="Most Active Tag" value={topTag?.tag ?? '—'} sub={topTag ? `${topTag.showtimeCount} shows at ${topTag.venueName}` : undefined} />
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
-                    <SectionHeader title="Total Showtimes per Tag" />
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={tagTotals} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                        <YAxis type="category" dataKey="tag" tick={{ fontSize: 12 }} width={120} />
-                        <Tooltip formatter={(v: number) => [v, 'Showtimes']} />
-                        <Bar dataKey="showtimeCount" name="Showtimes" radius={[0, 4, 4, 0]}>
-                          {tagTotals.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                        </Bar>
+                    <SectionHeader title="Showtimes per Venue by Tag" badge="stacked by tag" />
+                    <ResponsiveContainer width="100%" height={340}>
+                      <BarChart data={venueRows} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <XAxis dataKey="venueName" tick={{ fontSize: 11 }} angle={-25} textAnchor="end" interval={0} />
+                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                        <Tooltip />
+                        <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8 }} />
+                        {allTags.map((tag, i) => (
+                          <Bar
+                            key={tag}
+                            dataKey={tag}
+                            stackId="venue"
+                            fill={BAR_COLORS[i % BAR_COLORS.length]}
+                            radius={i === allTags.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                          />
+                        ))}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
