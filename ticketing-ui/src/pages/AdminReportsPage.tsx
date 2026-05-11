@@ -32,20 +32,55 @@ interface TopEventPoint { eventTitle: string; ticketsSold: number; totalIncome: 
 interface EventOption   { eventId: number; title: string; }
 
 const REPORT_TYPES = [
-  { value: 'peak-sales',  label: 'Peak Sales Period' },
-  { value: 'tag-venue',   label: 'Tag to Venue' },
-  { value: 'capacity',    label: 'Booking-to-Capacity' },
-  { value: 'top-income',  label: 'Top Events by Income' },
-  { value: 'top-tickets', label: 'Top Events by Tickets Sold' },
+  { value: 'peak-sales',  label: 'Peak Sales',    icon: '📈', desc: 'When tickets are purchased by hour & day' },
+  { value: 'tag-venue',   label: 'Tag to Venue',  icon: '🏷️', desc: 'Which event types frequent which venues' },
+  { value: 'capacity',    label: 'Capacity',       icon: '🎯', desc: 'Booking fill rate per showtime' },
+  { value: 'top-income',  label: 'Top by Revenue', icon: '💰', desc: 'Highest-earning events' },
+  { value: 'top-tickets', label: 'Top by Tickets', icon: '🎫', desc: 'Events with most tickets sold' },
 ];
 
 const BAR_COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#ec4899','#3b82f6','#8b5cf6','#f97316'];
+const inputCls   = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
-const inputCls = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+// ── Shared sub-components ─────────────────────────────────────────────────────
+function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 shadow-sm">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">{label}</p>
+      <p className={`text-2xl font-bold truncate ${accent ?? 'text-gray-900'}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-400 mt-1 truncate">{sub}</p>}
+    </div>
+  );
+}
+
+function SectionHeader({ title, badge }: { title: string; badge?: string }) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-base font-semibold text-gray-800">{title}</h3>
+      {badge && (
+        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RankBadge({ i }: { i: number }) {
+  if (i === 0) return <span className="text-base">🥇</span>;
+  if (i === 1) return <span className="text-base">🥈</span>;
+  if (i === 2) return <span className="text-base">🥉</span>;
+  return <span className="text-xs font-bold text-gray-300">#{i + 1}</span>;
+}
 
 function SkeletonReport() {
   return (
     <div className="space-y-4 animate-pulse">
+      <div className="grid grid-cols-3 gap-4">
+        {[0, 1, 2].map(i => (
+          <div key={i} className="bg-white border border-gray-200 rounded-xl px-5 py-4 h-24" />
+        ))}
+      </div>
       <div className="bg-white border border-gray-200 rounded-xl p-6">
         <div className="h-4 bg-gray-200 rounded w-48 mb-6" />
         <div className="h-64 bg-gray-100 rounded-lg" />
@@ -66,6 +101,7 @@ function SkeletonReport() {
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export function AdminReportsPage({ onNavigate }: Props) {
   const { user, logout } = useAuth();
   const [reportType, setReportType] = useState('peak-sales');
@@ -130,7 +166,8 @@ export function AdminReportsPage({ onNavigate }: Props) {
     'top-tickets': ticketsData.length === 0,
   })[reportType] ?? true;
 
-  const hasFilters = !!(startDate || endDate || eventId);
+  const hasFilters    = !!(startDate || endDate || eventId);
+  const currentMeta   = REPORT_TYPES.find(r => r.value === reportType)!;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -159,70 +196,73 @@ export function AdminReportsPage({ onNavigate }: Props) {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {/* Page title */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
           <p className="text-sm text-gray-500 mt-0.5">Analyse sales, capacity, and revenue data</p>
         </div>
 
-        {/* Controls */}
-        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-6 flex flex-wrap items-end gap-4 shadow-sm">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Report Type</label>
-            <select value={reportType} onChange={e => handleTypeChange(e.target.value)} className={inputCls}>
-              {REPORT_TYPES.map(r => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
-          </div>
+        {/* Report type pill tabs */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {REPORT_TYPES.map(r => (
+            <button
+              key={r.value}
+              onClick={() => handleTypeChange(r.value)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                reportType === r.value
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              <span>{r.icon}</span>
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Filter bar */}
+        <div className="bg-white border border-gray-200 rounded-xl px-5 py-3.5 mb-6 flex flex-wrap items-center gap-3 shadow-sm">
+          <span className="text-xs font-medium text-gray-400 mr-1 uppercase tracking-wide">Filter</span>
 
           {reportType === 'peak-sales' && (
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Filter by Event</label>
-              <select
-                value={eventId ?? ''}
-                onChange={e => setEventId(e.target.value ? Number(e.target.value) : undefined)}
-                className={inputCls}
-              >
-                <option value="">All Events</option>
-                {eventOptions.map(e => (
-                  <option key={e.eventId} value={e.eventId}>{e.title}</option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={eventId ?? ''}
+              onChange={e => setEventId(e.target.value ? Number(e.target.value) : undefined)}
+              className={inputCls}
+            >
+              <option value="">All Events</option>
+              {eventOptions.map(e => (
+                <option key={e.eventId} value={e.eventId}>{e.title}</option>
+              ))}
+            </select>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
-          </div>
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputCls} />
+          <span className="text-gray-300">→</span>
+          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputCls} />
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleApply}
-              className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              {loading ? (
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-              ) : (
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              )}
-              Apply
-            </button>
-            {hasFilters && (
-              <button onClick={handleClear} className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors">
-                Clear
-              </button>
+          <button
+            onClick={handleApply}
+            className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            {loading ? (
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
             )}
-          </div>
+            Apply
+          </button>
+          {hasFilters && (
+            <button onClick={handleClear} className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+              Clear
+            </button>
+          )}
+          <span className="ml-auto text-xs text-gray-400 hidden sm:block">{currentMeta.desc}</span>
         </div>
 
         {error && (
@@ -245,70 +285,82 @@ export function AdminReportsPage({ onNavigate }: Props) {
         ) : (
           <>
             {/* ── Peak Sales ─────────────────────────────────────── */}
-            {reportType === 'peak-sales' && (
-              <>
-                <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
-                  <h3 className="text-base font-semibold text-gray-800 mb-4">Ticket Sales by Hour &amp; Day of Week</h3>
-                  <ResponsiveContainer width="100%" height={340}>
-                    <LineChart data={peakData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                      <Tooltip /><Legend />
-                      {DAYS.map(d => (
-                        <Line key={d.key} type="monotone" dataKey={d.key} name={d.label}
-                          stroke={d.color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-800">Sales Volume by Hour</h3>
-                    <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
-                      {grandTotal.toLocaleString()} tickets total
-                    </span>
+            {reportType === 'peak-sales' && (() => {
+              const peakHour = peakData.reduce((b, r) => rowTotal(r) > rowTotal(b) ? r : b, peakData[0]);
+              const peakDay  = DAYS.reduce((b, d) => colTotal(d.key) > colTotal(b.key) ? d : b, DAYS[0]);
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <StatCard label="Total Tickets" value={grandTotal.toLocaleString()} sub="across all hours & days" accent="text-indigo-700" />
+                    <StatCard label="Peak Hour" value={peakHour.label} sub={`${rowTotal(peakHour).toLocaleString()} tickets`} />
+                    <StatCard label="Busiest Day" value={peakDay.label} sub={`${colTotal(peakDay.key).toLocaleString()} tickets`} />
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="text-left px-4 py-3 font-semibold text-gray-600">Hour</th>
-                          {DAYS.map(d => <th key={d.key} className="text-center px-3 py-3 font-semibold" style={{ color: d.color }}>{d.label}</th>)}
-                          <th className="text-center px-4 py-3 font-semibold text-gray-800">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {peakData.map(row => (
-                          <tr key={row.hour} className="hover:bg-gray-50">
-                            <td className="px-4 py-2.5 font-medium text-gray-700">{row.label}</td>
-                            {DAYS.map(d => (
-                              <td key={d.key} className="text-center px-3 py-2.5">
-                                {row[d.key] > 0
-                                  ? <span className="font-medium" style={{ color: d.color }}>{row[d.key]}</span>
-                                  : <span className="text-gray-300">—</span>}
-                              </td>
-                            ))}
-                            <td className="text-center px-4 py-2.5 font-semibold text-gray-900">{rowTotal(row)}</td>
-                          </tr>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
+                    <SectionHeader title="Ticket Sales by Hour & Day of Week" badge={`${grandTotal.toLocaleString()} total`} />
+                    <ResponsiveContainer width="100%" height={340}>
+                      <LineChart data={peakData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                        <Tooltip /><Legend />
+                        {DAYS.map(d => (
+                          <Line key={d.key} type="monotone" dataKey={d.key} name={d.label}
+                            stroke={d.color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                         ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-gray-50 border-t-2 border-gray-200">
-                          <td className="px-4 py-3 font-semibold text-gray-700">Total</td>
-                          {DAYS.map(d => <td key={d.key} className="text-center px-3 py-3 font-semibold text-gray-700">{colTotal(d.key)}</td>)}
-                          <td className="text-center px-4 py-3 font-bold text-gray-900">{grandTotal}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
-                </div>
-              </>
-            )}
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-800">Sales Volume by Hour</h3>
+                      <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
+                        {grandTotal.toLocaleString()} tickets total
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left px-4 py-3 font-semibold text-gray-600">Hour</th>
+                            {DAYS.map(d => <th key={d.key} className="text-center px-3 py-3 font-semibold" style={{ color: d.color }}>{d.label}</th>)}
+                            <th className="text-center px-4 py-3 font-semibold text-gray-800">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {peakData.map(row => (
+                            <tr key={row.hour} className="hover:bg-indigo-50/30 transition-colors">
+                              <td className="px-4 py-2.5 font-medium text-gray-700">{row.label}</td>
+                              {DAYS.map(d => (
+                                <td key={d.key} className="text-center px-3 py-2.5">
+                                  {row[d.key] > 0
+                                    ? <span className="font-medium" style={{ color: d.color }}>{row[d.key]}</span>
+                                    : <span className="text-gray-300">—</span>}
+                                </td>
+                              ))}
+                              <td className="text-center px-4 py-2.5 font-semibold text-gray-900">{rowTotal(row)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-gray-50 border-t-2 border-gray-200">
+                            <td className="px-4 py-3 font-semibold text-gray-700">Total</td>
+                            {DAYS.map(d => <td key={d.key} className="text-center px-3 py-3 font-semibold text-gray-700">{colTotal(d.key)}</td>)}
+                            <td className="text-center px-4 py-3 font-bold text-gray-900">{grandTotal}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* ── Tag to Venue ───────────────────────────────────── */}
             {reportType === 'tag-venue' && (() => {
-              const tagTotals = Object.values(
+              const uniqueTags   = new Set(tagVenueData.map(r => r.tag)).size;
+              const uniqueVenues = new Set(tagVenueData.map(r => r.venueName)).size;
+              const topTag       = [...tagVenueData].sort((a, b) => b.showtimeCount - a.showtimeCount)[0];
+              const tagTotals    = Object.values(
                 tagVenueData.reduce((acc, r) => {
                   if (!acc[r.tag]) acc[r.tag] = { tag: r.tag, showtimeCount: 0 };
                   acc[r.tag].showtimeCount += r.showtimeCount;
@@ -317,15 +369,20 @@ export function AdminReportsPage({ onNavigate }: Props) {
               );
               return (
                 <>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <StatCard label="Unique Tags" value={String(uniqueTags)} sub="event categories tracked" accent="text-indigo-700" />
+                    <StatCard label="Unique Venues" value={String(uniqueVenues)} sub="venues used" />
+                    <StatCard label="Most Active Tag" value={topTag?.tag ?? '—'} sub={topTag ? `${topTag.showtimeCount} shows at ${topTag.venueName}` : undefined} />
+                  </div>
                   <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
-                    <h3 className="text-base font-semibold text-gray-800 mb-4">Total Showtimes per Tag</h3>
+                    <SectionHeader title="Total Showtimes per Tag" />
                     <ResponsiveContainer width="100%" height={320}>
                       <BarChart data={tagTotals} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                         <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
                         <YAxis type="category" dataKey="tag" tick={{ fontSize: 12 }} width={120} />
                         <Tooltip formatter={(v: number) => [v, 'Showtimes']} />
-                        <Bar dataKey="showtimeCount" name="Showtimes" radius={[0,4,4,0]}>
+                        <Bar dataKey="showtimeCount" name="Showtimes" radius={[0, 4, 4, 0]}>
                           {tagTotals.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
                         </Bar>
                       </BarChart>
@@ -347,7 +404,7 @@ export function AdminReportsPage({ onNavigate }: Props) {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                           {tagVenueData.map((r, i) => (
-                            <tr key={i} className="hover:bg-gray-50">
+                            <tr key={i} className="hover:bg-indigo-50/30 transition-colors">
                               <td className="px-4 py-3">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
                                   {r.tag}
@@ -367,136 +424,164 @@ export function AdminReportsPage({ onNavigate }: Props) {
             })()}
 
             {/* ── Capacity Analysis ──────────────────────────────── */}
-            {reportType === 'capacity' && (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="px-5 py-3.5 border-b border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-800">Booking-to-Capacity per Showtime</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Venue</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-                        <th className="text-center px-4 py-3 font-semibold text-gray-600">Booked / Cap.</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600 min-w-[160px]">Fill Rate</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {capacityData.map((r, i) => {
-                        const pct = Math.min(100, r.fillRate ?? 0);
-                        const color = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#6366f1';
-                        return (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium text-gray-900">{r.eventTitle}</td>
-                            <td className="px-4 py-3 text-gray-600">{r.venueName}</td>
-                            <td className="px-4 py-3 text-gray-600">
-                              {new Date(r.showSchedules).toLocaleString('en-TH', { dateStyle: 'medium', timeStyle: 'short' })}
-                            </td>
-                            <td className="text-center px-4 py-3 text-gray-700">
-                              {r.bookedTickets.toLocaleString()} / {r.totalCapacity.toLocaleString()}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 bg-gray-100 rounded-full h-2">
-                                  <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-                                </div>
-                                <span className="text-xs font-semibold w-12 text-right" style={{ color }}>{pct.toFixed(1)}%</span>
-                              </div>
-                            </td>
+            {reportType === 'capacity' && (() => {
+              const avgFill = capacityData.reduce((s, r) => s + (r.fillRate ?? 0), 0) / capacityData.length;
+              const soldOut = capacityData.filter(r => (r.fillRate ?? 0) >= 90).length;
+              const topShow = [...capacityData].sort((a, b) => (b.fillRate ?? 0) - (a.fillRate ?? 0))[0];
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <StatCard label="Avg Fill Rate" value={`${avgFill.toFixed(1)}%`} sub="across all shows" accent="text-indigo-700" />
+                    <StatCard label="Near Sold Out (≥90%)" value={String(soldOut)} sub={`of ${capacityData.length} shows`} />
+                    <StatCard label="Fullest Show" value={topShow ? `${(topShow.fillRate ?? 0).toFixed(1)}%` : '—'} sub={topShow?.eventTitle} />
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="px-5 py-3.5 border-b border-gray-100">
+                      <h3 className="text-sm font-semibold text-gray-800">Booking-to-Capacity per Showtime</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
+                            <th className="text-left px-4 py-3 font-semibold text-gray-600">Venue</th>
+                            <th className="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
+                            <th className="text-center px-4 py-3 font-semibold text-gray-600">Booked / Cap.</th>
+                            <th className="text-left px-4 py-3 font-semibold text-gray-600 min-w-[160px]">Fill Rate</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {capacityData.map((r, i) => {
+                            const pct   = Math.min(100, r.fillRate ?? 0);
+                            const color = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#6366f1';
+                            return (
+                              <tr key={i} className="hover:bg-indigo-50/30 transition-colors">
+                                <td className="px-4 py-3 font-medium text-gray-900">{r.eventTitle}</td>
+                                <td className="px-4 py-3 text-gray-600">{r.venueName}</td>
+                                <td className="px-4 py-3 text-gray-600">
+                                  {new Date(r.showSchedules).toLocaleString('en-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                                </td>
+                                <td className="text-center px-4 py-3 text-gray-700">
+                                  {r.bookedTickets.toLocaleString()} / {r.totalCapacity.toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 bg-gray-100 rounded-full h-2">
+                                      <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                                    </div>
+                                    <span className="text-xs font-semibold w-12 text-right" style={{ color }}>{pct.toFixed(1)}%</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* ── Top Events by Income ───────────────────────────── */}
-            {reportType === 'top-income' && (
-              <>
-                <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
-                  <h3 className="text-base font-semibold text-gray-800 mb-4">Top Events by Revenue</h3>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={incomeData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={v => `฿${Number(v).toLocaleString()}`} />
-                      <YAxis type="category" dataKey="eventTitle" tick={{ fontSize: 12 }} width={120} />
-                      <Tooltip formatter={(v: number) => [`฿${Number(v).toLocaleString()}`, 'Revenue']} />
-                      <Bar dataKey="totalIncome" name="Revenue (฿)" radius={[0,4,4,0]}>
-                        {incomeData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Rank</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
-                        <th className="text-center px-4 py-3 font-semibold text-gray-600">Tickets Sold</th>
-                        <th className="text-right px-4 py-3 font-semibold text-gray-600">Total Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {incomeData.map((r, i) => (
-                        <tr key={r.eventTitle} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-bold text-gray-300">#{i + 1}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900">{r.eventTitle}</td>
-                          <td className="text-center px-4 py-3 text-gray-700">{r.ticketsSold.toLocaleString()}</td>
-                          <td className="text-right px-4 py-3 font-bold text-indigo-700">฿{Number(r.totalIncome).toLocaleString()}</td>
+            {reportType === 'top-income' && (() => {
+              const totalRevenue = incomeData.reduce((s, r) => s + Number(r.totalIncome), 0);
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <StatCard label="Total Revenue" value={`฿${totalRevenue.toLocaleString()}`} sub="from confirmed bookings" accent="text-indigo-700" />
+                    <StatCard label="#1 Event" value={incomeData[0]?.eventTitle ?? '—'} sub={incomeData[0] ? `฿${Number(incomeData[0].totalIncome).toLocaleString()}` : undefined} />
+                    <StatCard label="Events Ranked" value={String(incomeData.length)} sub="in this period" />
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
+                    <SectionHeader title="Top Events by Revenue" badge={`฿${totalRevenue.toLocaleString()} total`} />
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={incomeData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={v => `฿${Number(v).toLocaleString()}`} />
+                        <YAxis type="category" dataKey="eventTitle" tick={{ fontSize: 12 }} width={120} />
+                        <Tooltip formatter={(v: number) => [`฿${Number(v).toLocaleString()}`, 'Revenue']} />
+                        <Bar dataKey="totalIncome" name="Revenue (฿)" radius={[0, 4, 4, 0]}>
+                          {incomeData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="text-left px-4 py-3 font-semibold text-gray-600 w-12">Rank</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
+                          <th className="text-center px-4 py-3 font-semibold text-gray-600">Tickets Sold</th>
+                          <th className="text-right px-4 py-3 font-semibold text-gray-600">Total Revenue</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {incomeData.map((r, i) => (
+                          <tr key={r.eventTitle} className="hover:bg-indigo-50/30 transition-colors">
+                            <td className="px-4 py-3 text-center"><RankBadge i={i} /></td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{r.eventTitle}</td>
+                            <td className="text-center px-4 py-3 text-gray-700">{r.ticketsSold.toLocaleString()}</td>
+                            <td className="text-right px-4 py-3 font-bold text-indigo-700">฿{Number(r.totalIncome).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* ── Top Events by Tickets Sold ─────────────────────── */}
-            {reportType === 'top-tickets' && (
-              <>
-                <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
-                  <h3 className="text-base font-semibold text-gray-800 mb-4">Top Events by Tickets Sold</h3>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={ticketsData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="eventTitle" tick={{ fontSize: 12 }} width={120} />
-                      <Tooltip formatter={(v: number) => [v.toLocaleString(), 'Tickets']} />
-                      <Bar dataKey="ticketsSold" name="Tickets Sold" radius={[0,4,4,0]}>
-                        {ticketsData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Rank</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
-                        <th className="text-center px-4 py-3 font-semibold text-gray-600">Tickets Sold</th>
-                        <th className="text-right px-4 py-3 font-semibold text-gray-600">Total Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {ticketsData.map((r, i) => (
-                        <tr key={r.eventTitle} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-bold text-gray-300">#{i + 1}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900">{r.eventTitle}</td>
-                          <td className="text-center px-4 py-3 font-bold text-indigo-700">{r.ticketsSold.toLocaleString()}</td>
-                          <td className="text-right px-4 py-3 text-gray-700">฿{Number(r.totalIncome).toLocaleString()}</td>
+            {reportType === 'top-tickets' && (() => {
+              const totalTickets = ticketsData.reduce((s, r) => s + r.ticketsSold, 0);
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <StatCard label="Total Tickets Sold" value={totalTickets.toLocaleString()} sub="from confirmed bookings" accent="text-indigo-700" />
+                    <StatCard label="#1 Event" value={ticketsData[0]?.eventTitle ?? '—'} sub={ticketsData[0] ? `${ticketsData[0].ticketsSold.toLocaleString()} tickets` : undefined} />
+                    <StatCard label="Events Ranked" value={String(ticketsData.length)} sub="in this period" />
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4 shadow-sm">
+                    <SectionHeader title="Top Events by Tickets Sold" badge={`${totalTickets.toLocaleString()} total`} />
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={ticketsData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="eventTitle" tick={{ fontSize: 12 }} width={120} />
+                        <Tooltip formatter={(v: number) => [v.toLocaleString(), 'Tickets']} />
+                        <Bar dataKey="ticketsSold" name="Tickets Sold" radius={[0, 4, 4, 0]}>
+                          {ticketsData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="text-left px-4 py-3 font-semibold text-gray-600 w-12">Rank</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
+                          <th className="text-center px-4 py-3 font-semibold text-gray-600">Tickets Sold</th>
+                          <th className="text-right px-4 py-3 font-semibold text-gray-600">Total Revenue</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {ticketsData.map((r, i) => (
+                          <tr key={r.eventTitle} className="hover:bg-indigo-50/30 transition-colors">
+                            <td className="px-4 py-3 text-center"><RankBadge i={i} /></td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{r.eventTitle}</td>
+                            <td className="text-center px-4 py-3 font-bold text-indigo-700">{r.ticketsSold.toLocaleString()}</td>
+                            <td className="text-right px-4 py-3 text-gray-700">฿{Number(r.totalIncome).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
           </>
         )}
       </main>
