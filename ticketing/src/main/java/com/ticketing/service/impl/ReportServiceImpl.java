@@ -32,17 +32,17 @@ public class ReportServiceImpl implements ReportService {
         OffsetDateTime end   = endDate   != null ? endDate.atTime(23, 59, 59).atOffset(ZoneOffset.UTC) : null;
 
         StringBuilder sql = new StringBuilder("""
-                SELECT EXTRACT(HOUR FROM s.show_schedules)::int AS hour,
-                       EXTRACT(DOW  FROM s.show_schedules)::int AS dow,
-                       COUNT(t.ticket_id)                       AS cnt
+                SELECT EXTRACT(HOUR FROM b.timestamp)::int AS hour,
+                       EXTRACT(DOW  FROM b.timestamp)::int AS dow,
+                       COUNT(t.ticket_id)                  AS cnt
                 FROM bookings b
                 JOIN tickets     t  ON t.booking_id  = b.booking_id
                 JOIN tickettiers tt ON tt.tier_id     = t.tier_id
                 JOIN showtimes   s  ON s.showtime_id  = tt.showtime_id
                 WHERE b.status::text = 'CONFIRMED'
                 """);
-        if (start   != null) sql.append(" AND s.show_schedules >= :start");
-        if (end     != null) sql.append(" AND s.show_schedules <= :end");
+        if (start   != null) sql.append(" AND b.timestamp >= :start");
+        if (end     != null) sql.append(" AND b.timestamp <= :end");
         if (eventId != null) sql.append(" AND s.event_id = :eventId");
         sql.append(" GROUP BY hour, dow ORDER BY hour, dow");
 
@@ -122,7 +122,8 @@ public class ReportServiceImpl implements ReportService {
                     JOIN events      e  ON e.event_id    = s.event_id
                     JOIN venues      v  ON v.venue_id    = s.venue_id
                     JOIN tickettiers tt ON tt.showtime_id = s.showtime_id
-                    LEFT JOIN tickets tk ON tk.tier_id   = tt.tier_id AND tk.status::text != 'CANCELLED'
+                    LEFT JOIN tickets tk ON tk.tier_id   = tt.tier_id
+                    LEFT JOIN bookings bk ON bk.booking_id = tk.booking_id AND bk.status::text = 'CONFIRMED'
                     WHERE 1=1
                 """);
         if (start != null) sql.append(" AND s.show_schedules >= :start");

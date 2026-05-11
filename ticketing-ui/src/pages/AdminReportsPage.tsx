@@ -83,9 +83,9 @@ export function AdminReportsPage({ onNavigate }: Props) {
   const [eventOptions, setEventOptions] = useState<EventOption[]>([]);
 
   useEffect(() => {
-    api.getEvents().then(evs =>
-      setEventOptions(evs.map(e => ({ eventId: e.eventId, title: e.title })))
-    );
+    api.getEvents()
+      .then(evs => setEventOptions(evs.map(e => ({ eventId: e.eventId, title: e.title }))))
+      .catch(() => setError('Failed to load event list'));
     load('peak-sales', '', '', undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
