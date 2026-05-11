@@ -229,7 +229,8 @@ export function OrganizerDashboardPage({ onNavigate }: Props) {
             <span className="text-sm text-indigo-100">Hi, {user?.firstName}</span>
             {isAdmin && (
               <>
-                <button onClick={() => onNavigate('admin-overview')} className="text-sm text-white font-medium bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors">Overview</button>
+                <button onClick={() => onNavigate('admin-overview')} className="text-sm text-indigo-100 hover:text-white transition-colors">Overview</button>
+                <span className="text-sm text-white font-medium bg-white/20 px-3 py-1.5 rounded-lg">Events</span>
                 <button onClick={() => onNavigate('admin-venues')} className="text-sm text-indigo-100 hover:text-white transition-colors">Venues</button>
                 <button onClick={() => onNavigate('admin-reports')} className="text-sm text-indigo-100 hover:text-white transition-colors">Reports</button>
                 <button onClick={() => onNavigate('admin-users')} className="text-sm text-indigo-100 hover:text-white transition-colors">Users</button>
