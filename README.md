@@ -41,13 +41,13 @@ docker compose up
 
 **1. Set up the database**
 
-Create a PostgreSQL database named `ticketing`, then run:
+Create a PostgreSQL database named `ticketing`, then run
 ```bash
 psql -U postgres -d ticketing -f ddl.sql
 psql -U postgres -d ticketing -f seed.sql
 ```
 
-Optionally load realistic demo data (descriptions + 200 booking logs):
+Optionally load realistic demo data (descriptions + 200 booking logs)
 ```bash
 psql -U postgres -d ticketing -f seed_descriptions_and_bookings.sql
 ```
